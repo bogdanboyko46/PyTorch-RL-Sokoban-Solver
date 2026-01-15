@@ -12,16 +12,22 @@ player = []
 def main():
     global grid
     global player
-    grid = [['e', 'e', 'e'], ['e', 'b', 'e'], ['e', 'e', 'e']]
-    player = [1, 2]
+    grid = [['e', 'h', 'e'], ['e', 'b', 'e'], ['e', 'e', 'e']]
+    player = [2, 1]
+    print("before")
+    print(f"player location {player}")
+    for g in grid:
+        print(g)
     move_up()
-    print(grid)
-    print(player)
+    print("after")
+    print(f"player location {player}")
+    for g in grid:
+        print(g)
 def move_up() -> bool:
     # player cur pos
     global player
-    x = player[0]
-    y = player[1]
+    y = player[0]
+    x = player[1]
 
     # the soon to be y position (-1 because moving up)
     newy = y - 1
@@ -35,12 +41,12 @@ def move_up() -> bool:
 
     # if above object is empty space or a free hole (moves up)
     elif grid[newy][x] == 'e' or grid[newy][x] == 'h':
-        player = [x, newy]
+        player = [newy, x]
 
     # if above object is a block, or a hole with block in it
     elif grid[newy][x] == 'c' or grid[newy][x] == 'b':
         # if the next above object is oob or not vacant space
-        if abovey < 0 or (grid[abovey][x] != 'e' and grid[newy][x] != 'h'):
+        if abovey < 0 or grid[abovey][x] == 'w' or grid[abovey][x] == 'c' or grid[abovey][x] == 'b':
             return False
 
         # updates grid coord above (where the block is being pushed)
@@ -59,7 +65,8 @@ def move_up() -> bool:
         else:
             grid[newy][x] = 'h'
 
-        player = [x, newy]
+        # update player location
+        player = [newy, x]
     return True
 
 main()
