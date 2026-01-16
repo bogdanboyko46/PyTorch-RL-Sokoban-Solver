@@ -3,32 +3,49 @@
 # h = free hole (put block in it, but blocks not already in)
 # e = empty (no obstacle in the way)
 # c = block in hole (theres a hole that currently has block in it)
+import random
 
 # 2d character array will consist of the above 5 objects
 grid = [[]]
 # tuple of players coordinates on grid
 player = []
+# blocks in game
+blocks = 0
+# blocks in the hole
+blocksComp = 0
 
 def main():
-    global grid
-    global player
-    grid = [['e', 'e', 'e'], ['e', 'b', 'e'], ['e', 'e', 'e']]
+    solve_with_random()
+
+def solve_with_random():
+    global grid, player, blocksComp, blocks, player
+    blocks = 1
+    blocksComp = 0
     player = [0, 1]
-    print("before")
-    print(f"player location {player}")
-    for g in grid:
-        print(g)
-    move_down()
-    print(f"player location {player}")
-    move_left()
-    print(f"player location {player}")
-    move_down()
-    print(f"player location {player}")
-    move_right()
-    print("after")
-    print(f"player location {player}")
-    for g in grid:
-        print(g)
+    grid = [['e', 'e', 'e'], ['e', 'b', 'e'], ['e', 'e', 'h']]
+    while blocksComp != blocks:
+        blocksComp = 0
+        blocks = 1
+        grid = [['e', 'e', 'e'], ['e', 'b', 'e'], ['e', 'e', 'h']]
+        player = [0, 1]
+        # Solves with random moves
+        for i in range(1,80):
+            randnum = random.randint(1,4)
+            match randnum:
+                case 1:
+                    move_left()
+                case 2:
+                    move_right()
+                case 3:
+                    move_down()
+                case 4:
+                    move_up()
+            if blocksComp == blocks:
+                break
+    print_grid()
+    print(player)
+
+
 def move_up() -> bool:
     return move_vertical(-1)
 def move_down() -> bool:
@@ -37,10 +54,20 @@ def move_left() -> int:
     return move_horizontal(-1)
 def move_right() -> int:
     return move_horizontal(1)
+def print_grid():
+    global grid
+    global player
+    y = player[0]
+    x = player[1]
+    cur = grid[y][x]
+    grid[y][x] = 'P'
+    for g in grid:
+        print(g)
+    grid[y][x] = cur
 
 def move_vertical(dir: int) -> bool:
     # player cur pos
-    global player
+    global player, blocksComp
     y = player[0]
     x = player[1]
     newy = y + dir
@@ -68,6 +95,7 @@ def move_vertical(dir: int) -> bool:
         # hole -> complete (because block went into hole so this grid is 'complete' (can still change))
         else:
             grid[fary][x] = 'c'
+            blocksComp += 1
 
         # updates new coord (where block was and players moving to)
         # block -> empty (because block has been moved)
@@ -76,13 +104,14 @@ def move_vertical(dir: int) -> bool:
         # complete -> hole (block was pushed from hole)
         else:
             grid[newy][x] = 'h'
+            blocksComp -= 1
 
         # update player location
         player = [newy, x]
     return True
 
 def move_horizontal(dir: int) -> bool:
-    global player
+    global player, blocksComp
     y = player[0]
     x = player[1]
     newx = x + dir
@@ -111,6 +140,7 @@ def move_horizontal(dir: int) -> bool:
         # hole -> complete (because block went into hole so this grid is 'complete' (can still change))
         else:
             grid[y][farx] = 'c'
+            blocksComp += 1
 
         # updates new coord (where block was and players moving to)
         # block -> empty (because block has been moved)
@@ -119,6 +149,7 @@ def move_horizontal(dir: int) -> bool:
         # complete -> hole (block was pushed from hole)
         else:
             grid[y][newx] = 'h'
+            blocksComp -= 1
 
         # update player location
         player = [y, newx]
