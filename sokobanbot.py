@@ -312,10 +312,8 @@ class Sokoban:
         for block in self.blocks:
             x2 = block.x
             y2 = block.y
-            res.append(y1 > y2)
-            res.append(y1 < y2)
-            res.append(x1 > x2)
-            res.append(x1 < x2)
+            res.append(x2 - x1)
+            res.append(y2 - y1)
 
         return res
 
@@ -327,9 +325,7 @@ class Sokoban:
         for hole in self.holes:
             x2 = hole.x
             y2 = hole.y
-            res.append(y1 > y2)
-            res.append(y1 < y2)
-            res.append(x1 > x2)
-            res.append(x1 < x2)
+            res.append(x2 - x1)
+            res.append(y2 - y1)
 
         return res

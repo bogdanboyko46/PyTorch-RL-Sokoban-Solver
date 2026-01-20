@@ -19,7 +19,7 @@ class Agent:
         self.epsilon = 0 # randomness
         self.gamma = 0.9 # cares about long term reward (very cool)
         self.memory = deque(maxlen=MAX_MEMORY) # popleft when memory is reached
-        self.model = Linear_QNet(20, 256, 4)
+        self.model = Linear_QNet(12, 256, 4)
         self.trainer = QTrainer(self.model, LR, self.gamma)
 
 
