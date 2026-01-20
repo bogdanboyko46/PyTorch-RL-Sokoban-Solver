@@ -50,7 +50,7 @@ class Sokoban:
     def reset(self):
         x = random.randint(0, 8) * BLOCK_SIZE
         y = random.randint(0, 8) * BLOCK_SIZE
-        self.iterations = 0
+        self.frames_without_contact = 0
         self.player = Point(x, y)
 
         self.blocks = set()
@@ -137,9 +137,10 @@ class Sokoban:
         if old_x == self.player.x and old_y == self.player.y:
             reward -= 5
 
-        # check if agent is in contact with a block, add negative reward if so
-        # assume the agent is not in contact with a block, add a negative reward of 3
-        reward -= 3
+        # check if agent is in contact with a block
+        # assume agent is not in contact with block, increment iterations
+        self.frames_without_contact += 1
+
         for block in self.blocks:
             # if adjacent() returns a non 'None' value, then it is adjacent with a block on the board
             if self.adjacent(self.player.x, self.player.y, block.x, block.y):
@@ -147,6 +148,10 @@ class Sokoban:
         else:
             # will be reached if the break statement is reached, add a positive reward of 1 if in contact
             reward += 4
+            self.frames_without_contact = 0 # reset back to zero
+
+        if self.frames_without_contact > 10:
+            reward -= 5
 
         # update UI
         self._update_ui()
