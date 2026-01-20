@@ -1,4 +1,3 @@
-import time
 import pygame
 import random
 from enum import Enum
@@ -8,7 +7,6 @@ from collections import namedtuple
 pygame.init()
 
 font = pygame.font.Font('arial.ttf', 25)
-
 
 # Enum for player movement directions
 class Direction(Enum):
@@ -33,7 +31,6 @@ PINK = (255, 0, 255)
 # Size of each player block
 BLOCK_SIZE = 80
 
-
 class Sokoban:
     def __init__(self, w=720, h=720):
         # Screen width and height
@@ -53,6 +50,7 @@ class Sokoban:
     def reset(self):
         x = random.randint(0, 8) * BLOCK_SIZE
         y = random.randint(0, 8) * BLOCK_SIZE
+        self.iterations = 0
         self.player = Point(x, y)
 
         self.blocks = set()
@@ -70,6 +68,15 @@ class Sokoban:
                 self.holes.add(Point(x, y))
         pass
 
+    def unmovable_block_detect(self):
+        for block in self.blocks:
+            if block in (Point(0, 0),
+                         Point(self.w - BLOCK_SIZE, 0),
+                         Point(0, self.h - BLOCK_SIZE),
+                         Point(self.w - BLOCK_SIZE, self.h - BLOCK_SIZE)):
+                return True
+        return False
+
     def play_step(self, action):
         # TODO: return respective vars: reward, game_over, game_win
 
@@ -79,25 +86,39 @@ class Sokoban:
                 pygame.quit()
                 quit()
 
-        cur_in_hole = self.in_hole
-        # Move
+        # get old block in hole state to compare after move is completed
+        old_in_hold_ct = self.in_hole
+
+        # execute move from agent action
         self._move(action)
 
-        if self.in_hole == len(self.blocks):
-            return [10, True, False]
-        # Add check if game is impossible to win
+        # check if game is over and collect reward values
+        game_over = False
+        reward = 0
 
-        if self.in_hole > cur_in_hole:
-            return [0.5, False, False]
-        if self.in_hole < cur_in_hole:
-            return [-0.5, False, False]
-        else:
-            return [-0.01, False, False]
+        # compare old and new in hole states
+        if old_in_hold_ct > self.in_hole:
+            reward -= 10
+        elif old_in_hold_ct < self.in_hole:
+            reward += 10
 
+        # check if agent moved a block into an unmovable state
+        if self.unmovable_block_detect():
+            reward -= 15
+            game_over = True
+            return reward, game_over, False
 
-        # Update display
+        # check if agent completed the game
+        if self.in_hole == len(self.holes):
+            reward += 15
+            game_over = True
+            return reward, game_over, True
+
+        # update UI
         self._update_ui()
 
+        # return
+        return reward, game_over, False
 
     def _move(self, direction):
         x = self.player.x
@@ -154,9 +175,6 @@ class Sokoban:
         self.player = Point(x, y)
 
     def _update_ui(self):
-        num_holes = len(self.blocks)
-        num_comp = 0
-        # Clear screen
         self.display.fill(BLACK)
 
         p_pt = self.player
@@ -170,7 +188,6 @@ class Sokoban:
             if h_pt in self.blocks:
                 pygame.draw.rect(self.display, GREEN,
                                  pygame.Rect(h_pt.x, h_pt.y, BLOCK_SIZE, BLOCK_SIZE))
-                num_comp += 1
             elif h_pt == p_pt:
                 pygame.draw.rect(self.display, CYAN,
                                  pygame.Rect(h_pt.x, h_pt.y, BLOCK_SIZE, BLOCK_SIZE))
@@ -178,19 +195,13 @@ class Sokoban:
                 pygame.draw.rect(self.display, WHITE,
                                  pygame.Rect(h_pt.x, h_pt.y, BLOCK_SIZE, BLOCK_SIZE))
 
-        if num_holes == num_comp:
-            text = font.render("Complete!", True, PINK)
-            self.display.blit(text, [self.w / 2 - 100, self.w / 2])
-            pygame.display.flip()
-            time.sleep(3)
-            return True
         # Update the screen
         pygame.display.flip()
-        return False
 
     def can_move_right(self) -> bool:
         x = self.player.x
         y = self.player.y
+
         if (x + BLOCK_SIZE) < self.w:
             new_x = x + BLOCK_SIZE
             if Point(new_x, y) in self.blocks:
@@ -236,6 +247,20 @@ class Sokoban:
             return True
         return False
 
+    def adjacent(self, x1, y1, x2, y2):
+        pt = Point(x1, y1)
+
+        if pt == Point(x2 - BLOCK_SIZE, y2):
+            return Direction.RIGHT
+        elif pt == Point(x2 + BLOCK_SIZE, y2):
+            return Direction.LEFT
+        elif pt == Point(x2, y2 - BLOCK_SIZE):
+            return Direction.DOWN
+        elif pt == Point(x2, y2 + BLOCK_SIZE):
+            return Direction.UP
+
+        return None
+
     def block_state(self):
         res = []
         x1 = self.player.x
@@ -248,6 +273,23 @@ class Sokoban:
             res.append(y1 < y2)
             res.append(x1 > x2)
             res.append(x1 < x2)
+
+        # DANGER STATE
+        adjacent_dir = self.adjacent(x1, y1, x2, y2)
+
+        if not adjacent_dir:
+            res.append(False)
+        # CHECK HORIZONTAL DANGER MOVES
+        elif y2 in (0, self.h - BLOCK_SIZE):
+            if adjacent_dir == Direction.LEFT and x2 == BLOCK_SIZE or adjacent_dir == Direction.RIGHT and x2 == self.w - BLOCK_SIZE * 2:
+                res.append(True)
+        # CHECK VERTICAL DANGER MOVES
+        elif x2 in (0, self.w - BLOCK_SIZE):
+            if adjacent_dir == Direction.UP and y2 == BLOCK_SIZE or adjacent_dir == Direction.DOWN and y2 == self.h - BLOCK_SIZE * 2:
+                res.append(True)
+        else:
+            res.append(False)
+
         return res
 
     def hole_state(self):
@@ -262,4 +304,5 @@ class Sokoban:
             res.append(y1 < y2)
             res.append(x1 > x2)
             res.append(x1 < x2)
+
         return res

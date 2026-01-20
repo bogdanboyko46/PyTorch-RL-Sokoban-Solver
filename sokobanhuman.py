@@ -17,7 +17,6 @@ class Direction(Enum):
     UP = 3
     DOWN = 4
 
-
 # Point structure to store x and y coordinates
 Point = namedtuple('Point', 'x, y')
 
@@ -32,7 +31,6 @@ PINK = (255, 0, 255)
 
 # Size of each player block
 BLOCK_SIZE = 80
-
 
 class Sokoban:
     def __init__(self, w=720, h=720):

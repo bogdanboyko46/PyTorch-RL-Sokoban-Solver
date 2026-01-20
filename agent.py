@@ -5,6 +5,7 @@ import random
 import numpy as np
 from sokobanhuman import Sokoban
 from collections import deque
+from model import QTrainer, Linear_QNet
 
 MAX_MEMORY = 100_000
 BATCH_SIZE = 1000
@@ -18,9 +19,9 @@ class Agent:
         self.epsilon = 0 # randomness
         self.gamma = 0 # discount rate
         self.memory = deque(maxlen=MAX_MEMORY) # popleft when memory is reached
-        self.model = None # TODO
-        self.trainer = None # TODO
-        # TODO: model, trainer
+        self.model = Linear_QNet(11, 256, 3)
+        self.trainer = QTrainer(self.model, LR, self.gamma)
+
 
     def get_state(self, game):
 
@@ -97,6 +98,7 @@ class Agent:
 def train():
     steps_taken = [] # the # of steps the agent takes to win per game
     current_steps = 0
+    record = 0
     agent = Agent()
     game = Sokoban()
 
@@ -123,25 +125,19 @@ def train():
             # train long term mem
             game.reset()
             agent.train_long_memory() 
-            
-            if game_win:
-                steps_taken.append(current_steps)
 
             # reset current steps
             current_steps = 0
             agent.number_of_games += 1
-            
-            if current_steps > max(steps_taken):
-                # TODO: implement save function from  model.py
-                pass
 
-            print(f'Games: {agent.number_of_games}, Record: {max(steps_taken)}')
+            if game_win:
+                if current_steps < min(steps_taken):
+                    record = current_steps
+                    agent.model.save()
+
+                steps_taken.append(current_steps)
+
+            print(f'Games: {agent.number_of_games}, Record: {record}')
 
 if __name__ == '__main__':
-    agent = Agent()
-    game = Sokoban()
-    time.sleep(2)
-    while True:
-        agent.get_state(game)
-        if game.play_step():
-            break
+    train()
