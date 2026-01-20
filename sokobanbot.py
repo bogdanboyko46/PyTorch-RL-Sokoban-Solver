@@ -42,6 +42,7 @@ class Sokoban:
         self.player = None
         self.blocks = None
         self.holes = None
+        self.in_hole = 0
 
         # Initialize game window
         self.display = pygame.display.set_mode((self.w, self.h))
@@ -69,7 +70,7 @@ class Sokoban:
                 self.holes.add(Point(x, y))
         pass
 
-    def play_step(self):
+    def play_step(self, action):
         # TODO: return respective vars: reward, game_over, game_win
 
         # Handle user input
@@ -78,20 +79,65 @@ class Sokoban:
                 pygame.quit()
                 quit()
 
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    self._move(Direction.LEFT)
-                elif event.key == pygame.K_RIGHT:
-                    self._move(Direction.RIGHT)
-                elif event.key == pygame.K_UP:
-                    self._move(Direction.UP)
-                elif event.key == pygame.K_DOWN:
-                    self._move(Direction.DOWN)
-                elif event.key == pygame.K_r:
-                    return True
+        # Move
+        self._move(action)
+        
 
         # Update display
-        return self._update_ui()
+        self._update_ui()
+
+
+    def _move(self, direction):
+        x = self.player.x
+        y = self.player.y
+
+        if direction == Direction.RIGHT and self.can_move_right():
+            if Point(x + BLOCK_SIZE, y) in self.blocks:
+                old_pos =  Point(x + BLOCK_SIZE, y)
+                self.blocks.remove(old_pos)
+                if old_pos in self.holes:
+                    self.in_hole -= 1
+                new_pos = Point(x + BLOCK_SIZE * 2, y)
+                self.blocks.add(new_pos)
+                if new_pos in self.holes:
+                    self.in_hole += 1
+            x += BLOCK_SIZE
+        elif direction == Direction.LEFT and self.can_move_left():
+            if Point(x - BLOCK_SIZE, y) in self.blocks:
+                old_pos = Point(x - BLOCK_SIZE, y)
+                self.blocks.remove(old_pos)
+                if old_pos in self.holes:
+                    self.in_hole -= 1
+                new_pos = Point(x - BLOCK_SIZE * 2, y)
+                self.blocks.add(new_pos)
+                if new_pos in self.holes:
+                    self.in_hole += 1
+            x -= BLOCK_SIZE
+        elif direction == Direction.DOWN and self.can_move_down():
+            if Point(x, y + BLOCK_SIZE) in self.blocks:
+                old_pos = Point(x, y + BLOCK_SIZE)
+                self.blocks.remove(old_pos)
+                if old_pos in self.holes:
+                    self.in_hole -= 1
+                new_pos = Point(x, y + BLOCK_SIZE * 2)
+                self.blocks.add(new_pos)
+                if new_pos in self.holes:
+                    self.in_hole += 1
+            y += BLOCK_SIZE
+
+        elif direction == Direction.UP and self.can_move_up():
+            if Point(x, y - BLOCK_SIZE) in self.blocks:
+                old_pos = Point(x, y - BLOCK_SIZE)
+                self.blocks.remove(old_pos)
+                if old_pos in self.holes:
+                    self.in_hole -= 1
+                new_pos = Point(x, y - BLOCK_SIZE * 2)
+                self.blocks.add(new_pos)
+                if new_pos in self.holes:
+                    self.in_hole += 1
+            y -= BLOCK_SIZE
+
+        self.player = Point(x, y)
 
     def _update_ui(self):
         num_holes = len(self.blocks)
@@ -127,33 +173,6 @@ class Sokoban:
         # Update the screen
         pygame.display.flip()
         return False
-
-    def _move(self, direction):
-        x = self.player.x
-        y = self.player.y
-
-        if direction == Direction.RIGHT and self.can_move_right():
-            if Point(x + BLOCK_SIZE, y) in self.blocks:
-                self.blocks.remove(Point(x + BLOCK_SIZE, y))
-                self.blocks.add(Point(x + BLOCK_SIZE * 2, y))
-            x += BLOCK_SIZE
-        elif direction == Direction.LEFT and self.can_move_left():
-            if Point(x - BLOCK_SIZE, y) in self.blocks:
-                self.blocks.remove(Point(x - BLOCK_SIZE, y))
-                self.blocks.add(Point(x - BLOCK_SIZE * 2, y))
-            x -= BLOCK_SIZE
-        elif direction == Direction.DOWN and self.can_move_down():
-            if Point(x, y + BLOCK_SIZE) in self.blocks:
-                self.blocks.remove(Point(x, y + BLOCK_SIZE))
-                self.blocks.add(Point(x, y + BLOCK_SIZE * 2))
-            y += BLOCK_SIZE
-        elif direction == Direction.UP and self.can_move_up():
-            if Point(x, y - BLOCK_SIZE) in self.blocks:
-                self.blocks.remove(Point(x, y - BLOCK_SIZE))
-                self.blocks.add(Point(x, y - BLOCK_SIZE * 2))
-            y -= BLOCK_SIZE
-
-        self.player = Point(x, y)
 
     def can_move_right(self) -> bool:
         x = self.player.x
