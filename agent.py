@@ -7,6 +7,8 @@ from sokobanbot import Sokoban
 from collections import deque
 from model import QTrainer, Linear_QNet
 
+import matplotlib.pyplot as plt
+
 MAX_MEMORY = 100_000
 BATCH_SIZE = 1000
 LR = 0.001 # learning rate
@@ -19,7 +21,7 @@ class Agent:
         self.epsilon = 0 # randomness
         self.gamma = 0.9 # cares about long term reward (very cool)
         self.memory = deque(maxlen=MAX_MEMORY) # popleft when memory is reached
-        self.model = Linear_QNet(28, 256, 4)
+        self.model = Linear_QNet(14, 256, 4)
         self.trainer = QTrainer(self.model, LR, self.gamma)
 
 
@@ -52,9 +54,12 @@ class Agent:
             game.can_move_left(),
             game.can_move_right()
         ]
+
+        state.extend(game.player_pos())
         state.extend(game.block_state())
         state.extend(game.hole_state())
 
+        print(state)
 
         return np.array(state, dtype=int) # convert bools and floats to np array,
 
@@ -109,12 +114,13 @@ class Agent:
 
 
 def train():
-    steps_taken = []  # the # of steps the agent takes to win per game
+    reward_level = []
     record = 10000000
     agent = Agent()
     game = Sokoban()
-    current_steps = 0
-    while True:
+    current_reward = 0
+
+    while agent.number_of_games < 10000:
         # get old state
         state_old = agent.get_state(game)
 
@@ -130,7 +136,8 @@ def train():
 
         # remember
         agent.remember(state_old, get_move, reward, state_new, game_over)
-        current_steps += 1
+        current_reward += reward
+
         if game_over:
             if game_win:
                 if record == 10000000 or record > game.moves_made:
@@ -142,11 +149,19 @@ def train():
             game.reset()
             agent.train_long_memory()
 
-            # reset current steps
-            current_steps = 0
+            reward_level.append(current_reward)
+            # reset current reward
+            current_reward = 0
             agent.number_of_games += 1
 
             print(f'Games: {agent.number_of_games}, Record: {record}')
+
+    game_number = []
+    for i in range(1, agent.number_of_games + 1):
+        game_number.append(i)
+
+    plt.plot(game_number, reward_level)
+    plt.show()
 
 if __name__ == '__main__':
     train()
