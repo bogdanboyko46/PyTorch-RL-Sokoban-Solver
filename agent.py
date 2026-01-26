@@ -10,7 +10,7 @@ from model import QTrainer, Linear_QNet
 import matplotlib.pyplot as plt
 
 MAX_MEMORY = 100_000
-BATCH_SIZE = 1000
+BATCH_SIZE = 128
 LR = 0.001 # learning rate
 
 class Agent:
@@ -18,17 +18,20 @@ class Agent:
     def __init__(self):
         
         self.number_of_games = 0
-        self.epsilon = 0 # randomness
+        self.epsilon = 1.0 # randomness
+        self.epsilon_min = 0.05
+        self.epsilon_decay = 0.9995
+
         self.gamma = 0.9 # cares about long term reward (very cool)
         self.memory = deque(maxlen=MAX_MEMORY) # popleft when memory is reached
-        self.model = Linear_QNet(14, 256, 4)
+        self.model = Linear_QNet(8, 256, 4)
         self.trainer = QTrainer(self.model, LR, self.gamma)
 
 
     def get_state(self, game):
 
         # State array is as follows:
-        """"
+        """
         A ‘state’ array consisting of # boolean values, and normalised float: (6 + n*4 + n*4)
 
         N = amount of blocks/ holes
@@ -55,11 +58,8 @@ class Agent:
             game.can_move_right()
         ]
 
-        state.extend(game.player_pos())
         state.extend(game.block_state())
         state.extend(game.hole_state())
-
-        print(state)
 
         return np.array(state, dtype=int) # convert bools and floats to np array,
 
@@ -89,24 +89,20 @@ class Agent:
 
         # Update epsilon (exploration rate)
         # As the number of games increases, epsilon decreases
-        self.epsilon = max(0, 80 - self.number_of_games)
+        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
 
         # Array denoting the move to be made, udlr
         final_move = [0, 0, 0, 0]
 
         # Decide whether to explore or exploit
-        if random.randint(0, 200) < self.epsilon:
+        if random.random() < self.epsilon:
             move = random.randint(0, 3)
         else:
             # Convert state to a PyTorch tensor
-            state0 = torch.tensor(state, dtype=torch.float)
-
-            # Get Quality Values for all actions from the network
-            with torch.no_grad():  # no gradients needed when acting
+            state0 = torch.tensor(state, dtype=torch.float).unsqueeze(0)  # shape [1, features]
+            with torch.no_grad():
                 prediction = self.model(state0)
-
-            # Choose the highest quality action
-            move = torch.argmax(prediction).item()
+            move = torch.argmax(prediction, dim=1).item()
 
         # Convert action index to one-hot encoding
         final_move[move] = 1
@@ -114,13 +110,14 @@ class Agent:
 
 
 def train():
-    reward_level = []
+    rewards = []
     record = 10000000
     agent = Agent()
     game = Sokoban()
-    current_reward = 0
+    total_reward = 0
+    temp_moves = 0
 
-    while agent.number_of_games < 10000:
+    while agent.number_of_games < 1000:
         # get old state
         state_old = agent.get_state(game)
 
@@ -136,31 +133,36 @@ def train():
 
         # remember
         agent.remember(state_old, get_move, reward, state_new, game_over)
-        current_reward += reward
+        total_reward += reward
+
+        temp_moves += 1
 
         if game_over:
             if game_win:
-                if record == 10000000 or record > game.moves_made:
-                    record = game.moves_made
+
+                # allow the bot to learn more
+                agent.number_of_games += 1
+
+                if record == 10000000 or record > temp_moves:
+                    record = temp_moves
                     agent.model.save()
 
-                steps_taken.append(current_steps)
+                print(f'Games: {agent.number_of_games}, Record: {record}')
+
             # train long term mem
             game.reset()
             agent.train_long_memory()
 
-            reward_level.append(current_reward)
-            # reset current reward
-            current_reward = 0
-            agent.number_of_games += 1
-
-            print(f'Games: {agent.number_of_games}, Record: {record}')
+            rewards.append(total_reward)
+            temp_moves = 0
 
     game_number = []
-    for i in range(1, agent.number_of_games + 1):
+    for i in range(len(rewards)):
         game_number.append(i)
 
-    plt.plot(game_number, reward_level)
+    plt.plot(game_number, rewards)
+    plt.xlabel('Game Number')
+    plt.ylabel('Reward')
     plt.show()
 
 if __name__ == '__main__':

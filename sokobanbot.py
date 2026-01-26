@@ -38,7 +38,7 @@ PINK = (255, 0, 255)
 BLOCK_SIZE = 80
 
 class Sokoban:
-    def __init__(self, w=720, h=720):
+    def __init__(self, w=560, h=560):
         # Screen width and height
         self.w = w
         self.h = h
@@ -77,12 +77,7 @@ class Sokoban:
 
         self.differences[old_block].clear()
 
-        if closer_count > 0:
-            print("A BLOCK WAS PUSHED CLOSER TO HOLES")
-            return 5
-        else:
-            print("A BLOCK WAS AWAY FROM HOLES")
-            return -5
+        return 5 if closer_count > 0 else -5
 
     def reset(self):
         print("-----------------------------------------------------------------------------------------------------------------")
@@ -92,39 +87,10 @@ class Sokoban:
         self.in_hole = 0
         self.differences.clear()
 
-        x = random.randint(0, 12) * BLOCK_SIZE
-        y = random.randint(0, 12) * BLOCK_SIZE
-        self.player = Point(x, y)
+        self.player = Point(0, 0 )
+        self.holes.add(Point(BLOCK_SIZE, BLOCK_SIZE * 5))
+        self.blocks.add(Point(BLOCK_SIZE, BLOCK_SIZE * 3))
 
-        while len(self.blocks) < 2:
-            x = random.randint(3, 7) * BLOCK_SIZE
-            y = random.randint(3, 7) * BLOCK_SIZE
-            if not Point(x, y) in self.blocks and Point(x, y) != self.player:
-                self.blocks.add(Point(x, y))
-
-        while len(self.holes) < 2:
-            x = random.randint(2, 8) * BLOCK_SIZE
-            y = random.randint(2, 8) * BLOCK_SIZE
-            if not Point(x, y) in self.holes and not Point(x, y) in self.blocks and Point(x, y) != self.player:
-                self.holes.add(Point(x, y))
-
-        for block in self.blocks:
-            self.differences[block] = dict()
-
-            for hole in self.holes:
-                self.differences[block][hole] = math.sqrt((hole.x - block.x) ** 2 + (hole.y - block.y) ** 2) / BLOCK_SIZE
-
-    def hole_within_bounds(self):
-        for hole in self.holes:
-            if hole.y in (0, self.h - BLOCK_SIZE)or hole.x in (0, self.w - BLOCK_SIZE):
-                return True
-        return False
-
-    def top_bottom_borders(self, y):
-        return y in (0, self.h - BLOCK_SIZE)
-
-    def left_right_borders(self, x):
-        return x in (0, self.w - BLOCK_SIZE)
 
     def unmovable_block_detect(self):
         for block in self.blocks:
@@ -139,41 +105,8 @@ class Sokoban:
                          Point(self.w - BLOCK_SIZE, self.h - BLOCK_SIZE)):
                 return True
 
-            # if block is stuck in the top / bottom borders
-            if self.top_bottom_borders(block.x):
-
-                if self.hole_within_bounds():
-                    return True
-
-                if (Point(block.x + BLOCK_SIZE, block.y) in self.blocks
-                or Point(block.x - BLOCK_SIZE, block.y) in self.blocks):
-                    return True
-
-            # if the block is stuck in the left / right borders
-            if self.left_right_borders(block.x):
-
-                if self.hole_within_bounds():
-                    return True
-
-                if (Point(block.x, block.y + BLOCK_SIZE) in self.blocks
-                or Point(block.x, block.y - BLOCK_SIZE) in self.blocks):
-                    return True
-
         return False
 
-    def adjacent(self, x1, y1, x2, y2):
-        pt = Point(x1, y1)
-
-        if pt == Point(x2 - BLOCK_SIZE, y2):
-            return Direction.RIGHT
-        elif pt == Point(x2 + BLOCK_SIZE, y2):
-            return Direction.LEFT
-        elif pt == Point(x2, y2 - BLOCK_SIZE):
-            return Direction.DOWN
-        elif pt == Point(x2, y2 + BLOCK_SIZE):
-            return Direction.UP
-
-        return None
 
     def play_step(self, action):
         # TODO: return respective vars: reward, game_over, game_win
@@ -196,24 +129,26 @@ class Sokoban:
 
         # old states
         old_ct_in_hole = self.in_hole
-        old_x, old_y = self.player.x, self.player.y
 
         block_states = self._move(action)
         self._update_ui()
 
-        if block_states:
-            # detected that a block was moved, apply change to current difference dict
-            reward += self.replace_difference(block_states)
+
+        # if block_states:
+        #    # detected that a block was moved, apply change to current difference dict
+        #    reward += self.replace_difference(block_states)
             # can either be negative or positive depending on if block was moved towards holes
 
-        # main logic reward system
-        if old_x == self.player.x and old_y == self.player.y:
-            reward -= 5
+
+        # if self.unmovable_block_detect():
+        #    reward -= 25
+        #    game_over = True
+        #    return reward, game_over, False
 
         # if a block gets pushed onto a hole, give the agent a positive reward
         if self.in_hole > old_ct_in_hole:
             if self.in_hole == len(self.holes):
-                reward += 100
+                reward += 20
                 game_over = True
                 return reward, game_over, True
 
@@ -221,13 +156,14 @@ class Sokoban:
                 reward += 10
 
             self.moves_made = 0
+
         elif self.in_hole < old_ct_in_hole:
 
             # the agent pushed a block off a hole, return a negative reward
-            reward -= 5
+            reward -= 10
 
         # if agent pushes a block into a corner, heavily discourage
-        if self.unmovable_block_detect() or self.moves_made > 400:
+        if self.moves_made > 1000:
             reward -= 10
             game_over = True
             return reward, game_over, False
@@ -371,45 +307,23 @@ class Sokoban:
             return True
         return False
 
-    def overlapping(self, point):
-        return point in self.blocks and point in self.holes
-
     def player_pos(self):
         return [self.player.x / BLOCK_SIZE, self.player.y / BLOCK_SIZE]
 
     def block_state(self):
         res = []
-        x1 = self.player.x
-        y1 = self.player.y
-        # UP, DOWN, LEFT, RIGHT
-        for block in self.blocks:
-            x2 = block.x
-            y2 = block.y
+        x1, y1 = self.player.x, self.player.y
 
-            # if the block is inside a hole, then append -1
-            if self.overlapping(block):
-                res.append(-1)
-                res.append(-1)
-            else:
-                res.append((x1 - x2) / BLOCK_SIZE)
-                res.append((y1 - y2) / BLOCK_SIZE)
-
+        for block in sorted(self.blocks, key=lambda p: (p.x, p.y)):
+            res.append((x1 - block.x) / BLOCK_SIZE)
+            res.append((y1 - block.y) / BLOCK_SIZE)
         return res
 
     def hole_state(self):
         res = []
-        x1 = self.player.x
-        y1 = self.player.y
-        # UP, DOWN, LEFT, RIGHT
-        for hole in self.holes:
-            x2 = hole.x
-            y2 = hole.y
+        x1, y1 = self.player.x, self.player.y
 
-            if self.overlapping(hole):
-                res.append(-1)
-                res.append(-1)
-            else:
-                res.append((x1 - x2) / BLOCK_SIZE)
-                res.append((y1 - y2) / BLOCK_SIZE)
-
+        for hole in sorted(self.holes, key=lambda p: (p.x, p.y)):
+            res.append((x1 - hole.x) / BLOCK_SIZE)
+            res.append((y1 - hole.y) / BLOCK_SIZE)
         return res
