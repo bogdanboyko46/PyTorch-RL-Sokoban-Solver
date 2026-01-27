@@ -11,22 +11,22 @@ import matplotlib.pyplot as plt
 
 MAX_MEMORY = 100_000
 BATCH_SIZE = 128
-LR = 0.001 # learning rate
+LR = 0.001  # learning rate
+
 
 class Agent:
 
     def __init__(self):
-        
-        self.number_of_games = 0
-        self.epsilon = 1.0 # randomness
-        self.epsilon_min = 0.05
-        self.epsilon_decay = 0.9995
 
-        self.gamma = 0.9 # cares about long term reward (very cool)
-        self.memory = deque(maxlen=MAX_MEMORY) # popleft when memory is reached
+        self.number_of_games = 0
+        self.epsilon = 1.0  # randomness
+        self.epsilon_min = 0.05
+        self.epsilon_decay = 0.99995
+
+        self.gamma = 0.9  # cares about long term reward (very cool)
+        self.memory = deque(maxlen=MAX_MEMORY)  # popleft when memory is reached
         self.model = Linear_QNet(10, 256, 4)
         self.trainer = QTrainer(self.model, LR, self.gamma)
-
 
     def get_state(self, game):
 
@@ -40,7 +40,7 @@ class Agent:
 		    UP, DOWN, LEFT, RIGHT
 		USER position:
 		    X, Y
-        
+
         Each block:
 		    Availability to user:
             UP, DOWN, LEFT, RIGHT
@@ -62,17 +62,17 @@ class Agent:
         state.extend(game.block_state())
         state.extend(game.hole_state())
 
-        return np.array(state, dtype=int) # convert bools and floats to np array,
+        return np.array(state, dtype=int)  # convert bools and floats to np array,
 
     def remember(self, state, action, reward, next_state, game_over):
-        self.memory.append((state, action, reward, next_state, game_over)) # pop left if MAX_MEMORY is reached
+        self.memory.append((state, action, reward, next_state, game_over))  # pop left if MAX_MEMORY is reached
 
     def train_long_memory(self):
         if len(self.memory) > BATCH_SIZE:
-            mini_sample = random.sample(self.memory, BATCH_SIZE) # returns list of tuples
+            mini_sample = random.sample(self.memory, BATCH_SIZE)  # returns list of tuples
         else:
             mini_sample = self.memory
-        
+
         states, actions, rewards, next_states, dones = zip(*mini_sample)
         self.trainer.train_step(states, actions, rewards, next_states, dones)
 
@@ -118,7 +118,7 @@ def train():
     total_reward = 0
     temp_moves = 0
 
-    while agent.number_of_games < 250:
+    while agent.number_of_games < 500:
         # get old state
         state_old = agent.get_state(game)
 
@@ -163,8 +163,9 @@ def train():
 
     plt.plot(game_number, rewards)
     plt.xlabel('Game Number')
-    plt.ylabel('Reward')
+    plt.ylabel('Total Reward')
     plt.show()
+
 
 if __name__ == '__main__':
     train()
