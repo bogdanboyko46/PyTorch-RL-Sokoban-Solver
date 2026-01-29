@@ -190,7 +190,6 @@ def train():
 
         if game_over:
             if game_win:
-
                 # allow the bot to learn more
                 agent.number_of_games += 1
 
@@ -200,6 +199,7 @@ def train():
 
                 print(f'Games: {agent.number_of_games}, Record: {record}')
                 game.reset()
+
             else:
                 game.reload()
                 print(game.savedstate)

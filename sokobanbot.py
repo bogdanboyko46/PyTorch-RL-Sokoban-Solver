@@ -3,6 +3,8 @@ import random
 from enum import Enum
 from collections import namedtuple
 import numpy as np
+import copy
+
 import time
 
 # Initialize pygame modules
@@ -82,15 +84,21 @@ class Sokoban:
             for hole in self.holes:
                 self.paths[block][hole] = (abs(block.x - hole.x) / BLOCK_SIZE) + (abs(block.y - hole.y) / BLOCK_SIZE)
 
-        self.savedstate = (Point(self.player.x, self.player.y), self.blocks.copy(), self.holes.copy(), self.paths.copy())
+        self.savedstate = copy.deepcopy((
+            self.player,
+            self.blocks,
+            self.holes,
+            self.paths
+        ))
 
     def reload(self):
         self.moves_made = 0
-        self.player = self.savedstate[0]
-        self.blocks = self.savedstate[1]
-        self.holes = self.savedstate[2]
-        self.paths = self.savedstate[3]
+        self.player, self.blocks, self.holes, self.paths = copy.deepcopy(self.savedstate)
+        self.in_hole = sum(1 for b in self.blocks if b in self.holes)
+        self._update_ui()
+
         self.in_hole = 0
+        self._update_ui()
 
 
 
@@ -187,6 +195,7 @@ class Sokoban:
         if isinstance(action, (list, tuple, np.ndarray)):
             idx = int(np.argmax(action))
             action = [Direction.UP, Direction.DOWN, Direction.LEFT, Direction.RIGHT][idx]
+
 
         self.moves_made += 1
 
