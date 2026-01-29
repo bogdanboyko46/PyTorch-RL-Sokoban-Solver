@@ -46,7 +46,6 @@ class Sokoban:
         self.moves_made = None
         self.in_hole = 0
         self.paths = None
-        self.savedstate = None
 
         # Initialize game window
         self.display = pygame.display.set_mode((self.w, self.h))
@@ -55,7 +54,6 @@ class Sokoban:
         self.reset()
 
     # Resets the Sokoban game with all new positions
-    # This is used on start up of bot, and when the bot completes the previous 'level'
     def reset(self):
         x_p = random.randint(0, 8) * BLOCK_SIZE
         y_p = random.randint(0, 8) * BLOCK_SIZE
@@ -63,16 +61,13 @@ class Sokoban:
         self.moves_made = 0
         # Players starting position
         self.player = Point(x_p, y_p)
-        # Count of blocks in holes
         self.in_hole = 0
-        # Positions of blocks
         self.blocks = set()
-        # Position of holes
         self.holes = set()
         # Gets Manhattan distance of block and holes (for rewards)
         self.paths = dict()
 
-        while len(self.blocks) < 1:
+        while len(self.blocks) < 2:
             x = random.randint(0, 7) * BLOCK_SIZE
             y = random.randint(0, 7) * BLOCK_SIZE
 
@@ -81,7 +76,7 @@ class Sokoban:
                 self.blocks.add(Point(x, y))
 
         # Generates hole positions
-        while len(self.holes) < 1:
+        while len(self.holes) < 2:
             x = random.randint(0, 8) * BLOCK_SIZE
             y = random.randint(0, 8) * BLOCK_SIZE
 
@@ -96,59 +91,48 @@ class Sokoban:
             for hole in self.holes:
                 self.paths[block][hole] = (abs(block.x - hole.x) / BLOCK_SIZE) + (abs(block.y - hole.y) / BLOCK_SIZE)
 
-        # A state of all randomly generated positions (player, block, holes)
-        self.savedstate = copy.deepcopy((
-            self.player,
-            self.blocks,
-            self.holes
-        ))
-
-    # Reloads the previous game, this is used so the AI can repeat the same level over and over til it solves
-    def reload(self):
-        self.moves_made = 0
-        self.player, self.blocks, self.holes= copy.deepcopy(self.savedstate)
-        self.in_hole = sum(1 for b in self.blocks if b in self.holes)
-        self._update_ui()
-
-        self.paths = {}
-        for block in self.blocks:
-            self.paths[block] = {}
-            for hole in self.holes:
-                self.paths[block][hole] = (abs(block.x - hole.x) / BLOCK_SIZE) + (abs(block.y - hole.y) / BLOCK_SIZE)
-
-        self.in_hole = 0
-        self._update_ui()
-
-
-
     def replace_path(self, old_pos, new_pos):
 
         # TODO: the paths dict is not suitable for multiple blocks and holes -> fix it
 
         # incremented / decremented based off if a block got closer or farther from each block
-        closer_count = 0
+        ct = 0
         self.paths[new_pos] = dict()
-        changed_flg = False # temp var
+
+        old_closest_hole = { "Point": None, "Distance": 100_000 }
+        new_closest_hole = { "Point": None, "Distance": 100_000 }
 
         for hole in self.holes:
+
+            # continue if the hole is occupied
+            if hole in self.blocks:
+                continue
+
             old_dist = self.paths[old_pos][hole]
             new_dist = (abs(new_pos.x - hole.x) / BLOCK_SIZE) + (abs(new_pos.y - hole.y) / BLOCK_SIZE)
-            closer_count += 1 if old_dist > new_dist else -1
 
-            # temp check
-            if new_dist != old_dist:
-                changed_flg = True
+            # compare old and new distances
+            ct += 1 if new_dist < old_dist else -1
+
+            # compare old and new closest holes from the block
+            if old_closest_hole["Distance"] > old_dist:
+                old_closest_hole["Point"] = hole
+                old_closest_hole["Distance"] = old_dist
+
+            if new_closest_hole["Distance"] > new_dist:
+                new_closest_hole["Point"] = hole
+                new_closest_hole["Distance"] = new_dist
 
             # add path
             self.paths[new_pos][hole] = new_dist
 
+        # if the agent pushed the block closer to the previous CLOSEST hole, then return a pos reward
+        if ct == 0 and old_closest_hole["Point"] == new_closest_hole["Point"]:
+            return 10
+
         # delete old path
         del self.paths[old_pos]
-
-        if closer_count == 0:
-            return 15 if changed_flg else 0
-
-        return 10 if closer_count >= 0 else -1
+        return 10 if ct > 0 else -1
 
 
     def immovable_block_detect(self):
@@ -217,7 +201,6 @@ class Sokoban:
 
 
         self.moves_made += 1
-
         # check if game is over and collect reward values
         game_over = False
 
