@@ -189,6 +189,7 @@ def train():
         temp_moves += 1
 
         if game_over:
+            # If the bot completed the puzzle successfully
             if game_win:
                 # allow the bot to learn more
                 agent.number_of_games += 1
@@ -198,12 +199,13 @@ def train():
                     agent.model.save()
 
                 print(f'Games: {agent.number_of_games}, Record: {record}')
+                # Resets with new randomly generated puzzle
                 game.reset()
 
+            # If the bot wasnt able to solve puzzle
             else:
+                # Reloads the starting position of puzzle (same positions of blocks,holes and player)
                 game.reload()
-                print(game.savedstate)
-
 
             # train long term mem
             agent.train_long_memory()

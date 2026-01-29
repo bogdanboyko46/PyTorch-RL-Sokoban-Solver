@@ -54,42 +54,56 @@ class Sokoban:
 
         self.reset()
 
+    # Resets the Sokoban game with all new positions
+    # This is used on start up of bot, and when the bot completes the previous 'level'
     def reset(self):
         x_p = random.randint(0, 8) * BLOCK_SIZE
         y_p = random.randint(0, 8) * BLOCK_SIZE
+        # Moves made, used to reset (if over 650 moves made), and to track records
         self.moves_made = 0
+        # Players starting position
         self.player = Point(x_p, y_p)
+        # Count of blocks in holes
         self.in_hole = 0
+        # Positions of blocks
         self.blocks = set()
+        # Position of holes
         self.holes = set()
+        # Gets Manhattan distance of block and holes (for rewards)
         self.paths = dict()
 
         while len(self.blocks) < 1:
             x = random.randint(0, 7) * BLOCK_SIZE
             y = random.randint(0, 7) * BLOCK_SIZE
 
+            # If that position isnt already in use
             if Point(x, y) != self.player:
                 self.blocks.add(Point(x, y))
 
+        # Generates hole positions
         while len(self.holes) < 1:
             x = random.randint(0, 8) * BLOCK_SIZE
             y = random.randint(0, 8) * BLOCK_SIZE
 
+            # If that position isnt already in use
             if Point(x, y) != self.player and Point(x, y) not in self.blocks:
                 self.holes.add(Point(x, y))
 
+        # Finds manhattan path distances
         for block in self.blocks:
             self.paths[block] = dict()
 
             for hole in self.holes:
                 self.paths[block][hole] = (abs(block.x - hole.x) / BLOCK_SIZE) + (abs(block.y - hole.y) / BLOCK_SIZE)
 
+        # A state of all randomly generated positions (player, block, holes)
         self.savedstate = copy.deepcopy((
             self.player,
             self.blocks,
             self.holes
         ))
 
+    # Reloads the previous game, this is used so the AI can repeat the same level over and over til it solves
     def reload(self):
         self.moves_made = 0
         self.player, self.blocks, self.holes= copy.deepcopy(self.savedstate)
