@@ -3,9 +3,9 @@ import random
 from enum import Enum
 from collections import namedtuple
 import numpy as np
-import copy
 
 import time
+
 
 # Initialize pygame modules
 pygame.init()
@@ -53,6 +53,20 @@ class Sokoban:
 
         self.reset()
 
+    # used when initial game start / when blocks are pushed off a hole
+    def add_to_paths(self, block):
+        self.paths[block] = dict()
+        for hole in self.holes:
+
+            if hole in self.blocks:
+                continue
+
+            self.paths[block][hole] = (abs(block.x - hole.x) / BLOCK_SIZE) + (abs(block.y - hole.y) / BLOCK_SIZE)
+
+    def remove_from_paths(self, block):
+        if block in self.paths:
+            del self.paths[block]
+
     # Resets the Sokoban game with all new positions
     def reset(self):
         x_p = random.randint(0, 8) * BLOCK_SIZE
@@ -86,52 +100,53 @@ class Sokoban:
 
         # Finds manhattan path distances
         for block in self.blocks:
-            self.paths[block] = dict()
-
-            for hole in self.holes:
-                self.paths[block][hole] = (abs(block.x - hole.x) / BLOCK_SIZE) + (abs(block.y - hole.y) / BLOCK_SIZE)
+            self.add_to_paths(block)
 
     def replace_path(self, old_pos, new_pos):
+        # if pushed into a hole stop tracking that block
+        if new_pos in self.holes:
+            self.remove_from_paths(old_pos)
+            return 0
 
-        # TODO: the paths dict is not suitable for multiple blocks and holes -> fix it
+        if old_pos not in self.paths:
+            self.add_to_paths(old_pos)
 
-        # incremented / decremented based off if a block got closer or farther from each block
+        # recompute all distances for new_pos fresh
+        self.paths[new_pos] = {}
+
         ct = 0
-        self.paths[new_pos] = dict()
-
-        old_closest_hole = { "Point": None, "Distance": 100_000 }
-        new_closest_hole = { "Point": None, "Distance": 100_000 }
+        old_closest_hole = {"Point": None, "Distance": float("inf")}
+        new_closest_hole = {"Point": None, "Distance": float("inf")}
 
         for hole in self.holes:
-
-            # continue if the hole is occupied
             if hole in self.blocks:
                 continue
 
-            old_dist = self.paths[old_pos][hole]
+            # don't assume hole key exists for old_pos
+            old_dist = self.paths[old_pos].get(hole)
+            if old_dist is None:
+                old_dist = (abs(old_pos.x - hole.x) / BLOCK_SIZE) + (abs(old_pos.y - hole.y) / BLOCK_SIZE)
+                self.paths[old_pos][hole] = old_dist  # keep it consistent going forward
+
             new_dist = (abs(new_pos.x - hole.x) / BLOCK_SIZE) + (abs(new_pos.y - hole.y) / BLOCK_SIZE)
 
-            # compare old and new distances
             ct += 1 if new_dist < old_dist else -1
 
-            # compare old and new closest holes from the block
-            if old_closest_hole["Distance"] > old_dist:
+            if old_dist < old_closest_hole["Distance"]:
                 old_closest_hole["Point"] = hole
                 old_closest_hole["Distance"] = old_dist
 
-            if new_closest_hole["Distance"] > new_dist:
+            if new_dist < new_closest_hole["Distance"]:
                 new_closest_hole["Point"] = hole
                 new_closest_hole["Distance"] = new_dist
 
-            # add path
             self.paths[new_pos][hole] = new_dist
 
-        # if the agent pushed the block closer to the previous CLOSEST hole, then return a pos reward
+        # remove old_pos mapping
+        self.remove_from_paths(old_pos)
+
         if ct == 0 and old_closest_hole["Point"] == new_closest_hole["Point"]:
             return 10
-
-        # delete old path
-        del self.paths[old_pos]
         return 10 if ct > 0 else -1
 
 
@@ -187,6 +202,7 @@ class Sokoban:
 
     def play_step(self, action):
         # TODO: return respective vars: reward, game_over, game_win
+        #time.sleep(.05)
 
         # Handle user input
         for event in pygame.event.get():
@@ -213,11 +229,13 @@ class Sokoban:
 
         # execute move from agent action
         old_pos, new_pos = self._move(action)
+        self._update_ui()
 
         if old_x == self.player.x and old_y == self.player.y:
             reward -= 5
 
         elif old_pos and new_pos:
+
             # update reward based off if the agent pushed a block closer to any of the holes
             reward += self.replace_path(old_pos, new_pos)
 
@@ -228,17 +246,19 @@ class Sokoban:
             return reward, game_over, True
         elif self.in_hole != old_in_hole:
             if self.in_hole > old_in_hole:
+
+                self.moves_made = 0
                 reward += 100
+
             else:
+
                 reward -= 10
 
         # check if agent moved a block into an immovable state
-        if self.immovable_block_detect() or self.moves_made > 1600:
+        if self.immovable_block_detect() or self.moves_made > 5000:
             reward -= 5
             game_over = True
             return reward, game_over, False
-
-        self._update_ui()
 
         # return
         return reward, game_over, False
@@ -260,7 +280,6 @@ class Sokoban:
                 self.blocks.add(new_pos)
                 if new_pos in self.holes:
                     self.in_hole += 1
-                moved_block = True
             x += BLOCK_SIZE
 
         elif direction == Direction.LEFT and self.can_move_left():
@@ -273,7 +292,6 @@ class Sokoban:
                 self.blocks.add(new_pos)
                 if new_pos in self.holes:
                     self.in_hole += 1
-                moved_block = True
             x -= BLOCK_SIZE
 
         elif direction == Direction.DOWN and self.can_move_down():
@@ -286,7 +304,6 @@ class Sokoban:
                 self.blocks.add(new_pos)
                 if new_pos in self.holes:
                     self.in_hole += 1
-                moved_block = True
             y += BLOCK_SIZE
 
         elif direction == Direction.UP and self.can_move_up():
@@ -327,7 +344,6 @@ class Sokoban:
 
         # Update the screen
         pygame.display.flip()
-        pass
 
     def can_move_right(self) -> bool:
         x = self.player.x
@@ -361,7 +377,7 @@ class Sokoban:
             new_y = y + BLOCK_SIZE
             if Point(x, new_y) in self.blocks:
                 # Checks if block cant be pushed (out of bounds, or another block to blocks down)
-                if new_y + BLOCK_SIZE >= self.w or Point(x, new_y + BLOCK_SIZE) in self.blocks:
+                if new_y + BLOCK_SIZE >= self.h or Point(x, new_y + BLOCK_SIZE) in self.blocks:
                     return False
             return True
         return False

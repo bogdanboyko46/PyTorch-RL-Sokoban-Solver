@@ -20,7 +20,7 @@ class Agent:
         self.number_of_games = 0
         self.epsilon = 1.0  # randomness
         self.epsilon_min = 0.05
-        self.epsilon_decay = 0.999995
+        self.epsilon_decay = 0.9999995
 
         self.gamma = 0.9  # cares about long term reward (very cool)
         self.memory = deque(maxlen=MAX_MEMORY)  # popleft when memory is reached
