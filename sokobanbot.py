@@ -253,6 +253,8 @@ class Sokoban:
         if self.immovable_block_detect() or self.moves_made > 1600:
             reward -= 5
             game_over = True
+            self._update_ui()
+            time.sleep(0.75)
             return reward, game_over, False
 
         self._update_ui()
@@ -324,6 +326,9 @@ class Sokoban:
     def _update_ui(self):
         self.display.fill(BLACK)
 
+        moves_str = f"{self.moves_made}"
+        text = font.render(moves_str, True, PINK)
+        self.display.blit(text, [self.w - self.w/10, 30])
         p_pt = self.player
         pygame.draw.rect(self.display, BLUE,
                          pygame.Rect(p_pt.x, p_pt.y, BLOCK_SIZE, BLOCK_SIZE))
