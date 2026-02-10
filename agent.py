@@ -2,6 +2,8 @@ import time
 import torch
 import random
 import numpy as np
+
+import sokobanbot
 from sokobanbot import Sokoban
 from collections import deque
 from model import QTrainer, Linear_QNet
@@ -24,7 +26,10 @@ class Agent:
 
         self.gamma = 0.9  # cares about long term reward (very cool)
         self.memory = deque(maxlen=MAX_MEMORY)  # popleft when memory is reached
-        self.model = Linear_QNet(14, 256, 4)
+
+        temp_game = Sokoban()
+        mod_size = len(self.get_state(temp_game))
+        self.model = Linear_QNet(mod_size, 256, 4)
         self.trainer = QTrainer(self.model, LR, self.gamma)
 
     def get_state(self, game):

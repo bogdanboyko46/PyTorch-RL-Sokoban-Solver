@@ -81,20 +81,22 @@ class Sokoban:
         # Gets Manhattan distance of block and holes (for rewards)
         self.paths = dict()
 
-        while len(self.blocks) < 2:
-            x = random.randint(0, 7) * BLOCK_SIZE
-            y = random.randint(0, 7) * BLOCK_SIZE
+        num_blocks = 1;
 
-            # If that position isnt already in use
+        while len(self.blocks) < num_blocks:
+            x = random.randint(1, 6) * BLOCK_SIZE
+            y = random.randint(1, 6) * BLOCK_SIZE
+
+            # If that position isn't already in use
             if Point(x, y) != self.player:
                 self.blocks.add(Point(x, y))
 
         # Generates hole positions
-        while len(self.holes) < 2:
+        while len(self.holes) < num_blocks:
             x = random.randint(0, 8) * BLOCK_SIZE
             y = random.randint(0, 8) * BLOCK_SIZE
 
-            # If that position isnt already in use
+            # If that position isn't already in use
             if Point(x, y) != self.player and Point(x, y) not in self.blocks:
                 self.holes.add(Point(x, y))
 
@@ -259,7 +261,7 @@ class Sokoban:
             reward -= 5
             game_over = True
             self._update_ui()
-            time.sleep(0.75)
+            time.sleep(0.2)
             return reward, game_over, False
 
         # return
