@@ -1,3 +1,5 @@
+from http.cookiejar import debug
+
 import pygame
 import random
 from enum import Enum
@@ -35,11 +37,16 @@ PINK = (255, 0, 255)
 # Size of each player block
 BLOCK_SIZE = 80
 
+
 class Sokoban:
     def __init__(self, w=720, h=720):
+        self.render = False
+        self.debug_mode = False
+
         # Screen width and height
         self.w = w
         self.h = h
+        # Player
         self.player = None
         self.blocks = None
         self.holes = None
@@ -47,10 +54,13 @@ class Sokoban:
         self.paths = None
         self.tot_block_ct = 0
         self.block_hole_pairs = None
+        self.num_objects = 2
+        # self.moves_made = 0
 
         # Initialize game window
-        self.display = pygame.display.set_mode((self.w, self.h))
-        pygame.display.set_caption('Sokoban')
+        if self.render:
+            self.display = pygame.display.set_mode((self.w, self.h))
+            pygame.display.set_caption('Sokoban')
 
         self.reset()
 
@@ -68,7 +78,7 @@ class Sokoban:
         self.holes = set()
         self.paths = dict()
 
-        while len(self.blocks) < 1:
+        while len(self.blocks) < self.num_objects:
             x = random.randint(0, 7) * BLOCK_SIZE
             y = random.randint(0, 7) * BLOCK_SIZE
 
@@ -77,7 +87,7 @@ class Sokoban:
 
         self.tot_block_ct = len(self.blocks)
 
-        while len(self.holes) < 1:
+        while len(self.holes) < self.num_objects:
             x = random.randint(0, 8) * BLOCK_SIZE
             y = random.randint(0, 8) * BLOCK_SIZE
 
@@ -112,7 +122,8 @@ class Sokoban:
                 if new_pos in self.paths[block]:
                     del self.paths[block][new_pos]
 
-            print("PUSHED FROM HOLE TO HOLE!")
+            if self.debug_mode:
+                print("PUSHED FROM HOLE TO HOLE!")
             return 0
 
         if old_in_hole < self.in_hole:
@@ -127,7 +138,8 @@ class Sokoban:
 
                 del self.paths[block][new_pos]
 
-            print("PUSHED INTO HOLE!")
+            if self.debug_mode:
+                print("PUSHED INTO HOLE!")
             return 50
 
         elif old_in_hole > self.in_hole:
@@ -148,7 +160,8 @@ class Sokoban:
 
                 self.paths[block][old_pos] = abs(block.x - old_pos.x) / BLOCK_SIZE + abs(block.y - old_pos.y) / BLOCK_SIZE
 
-            print("PUSHED OFF HOLE")
+            if self.debug_mode:
+                print("PUSHED OFF HOLE")
             return -50
 
 
@@ -237,10 +250,11 @@ class Sokoban:
         # TODO: return respective vars: reward, game_over, game_win
 
         # Handle user input
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                quit()
+        # if self.render:
+        #     for event in pygame.event.get():
+        #         if event.type == pygame.QUIT:
+        #             pygame.quit()
+        #             quit()
 
         # action is [up, down, left, right]
         if isinstance(action, (list, tuple, np.ndarray)):
@@ -280,7 +294,8 @@ class Sokoban:
             game_over = True
             return reward, game_over, False
 
-        self._update_ui()
+        if self.render:
+            self._update_ui()
 
         # return
         return reward, game_over, False
@@ -424,6 +439,7 @@ class Sokoban:
         y1 = self.player.y
         # UP, DOWN, LEFT, RIGHT
         for block in self.blocks:
+            # Gets the position of block from player
             x2 = block.x
             y2 = block.y
             res.append((x1 - x2) / BLOCK_SIZE)
